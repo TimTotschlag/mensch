@@ -73,7 +73,10 @@ html, body {
   min-height: 0;
 }
 #boardWrap {
+  /* width and height both set to the same value => guaranteed square even on
+     older browsers that don't support aspect-ratio */
   width: min(94vw, 60vh, 560px);
+  height: min(94vw, 60vh, 560px);
   aspect-ratio: 1 / 1;
 }
 #board {
@@ -109,6 +112,11 @@ html, body {
 .cell.green .dot { background: var(--p-green); }
 .cell.yellow .dot { background: var(--p-yellow); }
 .cell.blue  .dot { background: var(--p-blue); }
+/* solid fallbacks first, color-mix override for modern browsers */
+.cell.home.red   .dot { background: #f29a9a; }
+.cell.home.green .dot { background: #92d8a3; }
+.cell.home.yellow .dot { background: #f7dd7a; }
+.cell.home.blue  .dot { background: #9cc2ee; }
 .cell.home.red   .dot { background: color-mix(in srgb, var(--p-red) 45%, white); }
 .cell.home.green .dot { background: color-mix(in srgb, var(--p-green) 45%, white); }
 .cell.home.yellow .dot { background: color-mix(in srgb, var(--p-yellow) 55%, white); }
