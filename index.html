@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f2933" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Mensch ärgere dich nicht</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <h1>Mensch ärgere&nbsp;dich&nbsp;nicht</h1>
+      <button id="menuBtn" class="icon-btn" title="Neues Spiel" aria-label="Neues Spiel">⟳</button>
+    </header>
+
+    <main id="stage">
+      <div id="boardWrap">
+        <div id="board" aria-label="Spielbrett"></div>
+      </div>
+    </main>
+
+    <footer id="controls">
+      <div id="status" aria-live="polite">Willkommen!</div>
+      <div id="action">
+        <div id="die" class="die" role="button" tabindex="0" aria-label="Würfeln">
+          <span class="pip-layer"></span>
+        </div>
+        <button id="rollBtn" class="btn primary">Würfeln</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Setup overlay -->
+  <div id="setup" class="overlay">
+    <div class="panel">
+      <h2>Spieler wählen</h2>
+      <p class="hint">Tippe, um zwischen <b>Mensch</b>, <b>Computer</b> und <b>Aus</b> zu wechseln.</p>
+      <div id="playerChoices" class="choices"></div>
+      <button id="startBtn" class="btn primary big">Spiel starten</button>
+    </div>
+  </div>
+
+  <!-- Win overlay -->
+  <div id="winScreen" class="overlay hidden">
+    <div class="panel">
+      <h2 id="winTitle">🏆</h2>
+      <p id="winText"></p>
+      <button id="againBtn" class="btn primary big">Nochmal spielen</button>
+    </div>
+  </div>
+
+  <!-- transient toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="game.js"></script>
+</body>
+</html>
