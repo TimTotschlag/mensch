@@ -7,7 +7,343 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Mensch ärgere dich nicht</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+  :root {
+    --bg: #1f2933;
+    --bg2: #323f4b;
+    --panel: #ffffff;
+    --board-bg: #f4ede0;
+    --board-line: #d8cbb3;
+    --track: #ffffff;
+    --p-red: #e23b3b;
+    --p-green: #2faf4f;
+    --p-yellow: #f3c014;
+    --p-blue: #2f7ddf;
+    --shadow: rgba(0, 0, 0, .25);
+    --cell: calc(100% / 11);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: #fff;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ---------- Topbar ---------- */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  #topbar h1 {
+    font-size: clamp(15px, 4.5vw, 22px);
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: .2px;
+  }
+  .icon-btn {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: none;
+    background: var(--bg2);
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .icon-btn:active { transform: scale(.94); }
+
+  /* ---------- Stage / Board ---------- */
+  #stage {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    min-height: 0;
+  }
+  #boardWrap {
+    /* width and height both set to the same value => guaranteed square even on
+       older browsers that don't support aspect-ratio */
+    width: min(94vw, 60vh, 560px);
+    height: min(94vw, 60vh, 560px);
+    aspect-ratio: 1 / 1;
+  }
+  #board {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--board-bg);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px var(--shadow), inset 0 0 0 2px var(--board-line);
+  }
+
+  /* board cells */
+  .cell {
+    position: absolute;
+    width: var(--cell);
+    height: var(--cell);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cell .dot {
+    width: 76%;
+    height: 76%;
+    border-radius: 50%;
+    background: var(--track);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.12);
+  }
+  .cell.home .dot { box-shadow: inset 0 0 0 2px rgba(0,0,0,.12); }
+  .cell.base .dot { width: 82%; height: 82%; background: rgba(255,255,255,.55); }
+  .cell.start .dot { box-shadow: inset 0 0 0 3px rgba(0,0,0,.35); }
+
+  .cell.red   .dot { background: var(--p-red); }
+  .cell.green .dot { background: var(--p-green); }
+  .cell.yellow .dot { background: var(--p-yellow); }
+  .cell.blue  .dot { background: var(--p-blue); }
+  /* solid fallbacks first, color-mix override for modern browsers */
+  .cell.home.red   .dot { background: #f29a9a; }
+  .cell.home.green .dot { background: #92d8a3; }
+  .cell.home.yellow .dot { background: #f7dd7a; }
+  .cell.home.blue  .dot { background: #9cc2ee; }
+  .cell.home.red   .dot { background: color-mix(in srgb, var(--p-red) 45%, white); }
+  .cell.home.green .dot { background: color-mix(in srgb, var(--p-green) 45%, white); }
+  .cell.home.yellow .dot { background: color-mix(in srgb, var(--p-yellow) 55%, white); }
+  .cell.home.blue  .dot { background: color-mix(in srgb, var(--p-blue) 45%, white); }
+
+  .center {
+    position: absolute;
+    left: calc(var(--cell) * 4);
+    top: calc(var(--cell) * 4);
+    width: calc(var(--cell) * 3);
+    height: calc(var(--cell) * 3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .center svg { width: 70%; height: 70%; filter: drop-shadow(0 2px 3px rgba(0,0,0,.2)); }
+
+  /* ---------- Pieces ---------- */
+  .piece {
+    position: absolute;
+    width: calc(var(--cell) * 0.78);
+    height: calc(var(--cell) * 0.78);
+    border-radius: 50%;
+    transform: translate(-50%, -55%);
+    transition: left .28s cubic-bezier(.34,1.2,.5,1), top .28s cubic-bezier(.34,1.2,.5,1);
+    box-shadow: 0 3px 4px rgba(0,0,0,.35), inset 0 2px 3px rgba(255,255,255,.4), inset 0 -3px 4px rgba(0,0,0,.25);
+    z-index: 5;
+    cursor: default;
+  }
+  .piece::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 30%;
+    width: 30%; height: 30%;
+    border-radius: 50%;
+    background: rgba(255,255,255,.55);
+    transform: translate(-50%,-50%);
+    filter: blur(1px);
+  }
+  .piece.red    { background: radial-gradient(circle at 35% 30%, #ff6a6a, var(--p-red)); }
+  .piece.green  { background: radial-gradient(circle at 35% 30%, #57d172, var(--p-green)); }
+  .piece.yellow { background: radial-gradient(circle at 35% 30%, #ffe066, var(--p-yellow)); }
+  .piece.blue   { background: radial-gradient(circle at 35% 30%, #6aa9f0, var(--p-blue)); }
+
+  .piece.movable {
+    cursor: pointer;
+    z-index: 7;
+    animation: bob .9s ease-in-out infinite;
+  }
+  .piece.movable::before {
+    content: "";
+    position: absolute;
+    inset: -18%;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 10px rgba(255,255,255,.9);
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translate(-50%, -55%); }
+    50%      { transform: translate(-50%, -68%); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: .35; transform: scale(1); }
+    50%      { opacity: 1; transform: scale(1.08); }
+  }
+
+  /* ---------- Controls ---------- */
+  #controls {
+    flex: 0 0 auto;
+    padding: 8px 16px max(14px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  #status {
+    min-height: 22px;
+    font-size: clamp(14px, 3.8vw, 17px);
+    font-weight: 600;
+    text-align: center;
+  }
+  #status b { font-weight: 800; }
+  #action {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .die {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #ffffff, #e6e6e6);
+    box-shadow: 0 4px 8px rgba(0,0,0,.4), inset 0 2px 2px rgba(255,255,255,.8);
+    position: relative;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .die .pip-layer {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 9px;
+    gap: 0;
+  }
+  .die .pip {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #2a2a2a;
+    align-self: center;
+    justify-self: center;
+  }
+  .die.rolling { animation: shake .5s ease; }
+  @keyframes shake {
+    0%,100% { transform: rotate(0); }
+    20% { transform: rotate(-18deg) scale(1.05); }
+    40% { transform: rotate(14deg) scale(1.05); }
+    60% { transform: rotate(-10deg); }
+    80% { transform: rotate(8deg); }
+  }
+
+  .btn {
+    border: none;
+    border-radius: 14px;
+    padding: 14px 26px;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    background: var(--bg2);
+    color: #fff;
+    transition: transform .08s, opacity .2s;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: linear-gradient(145deg, #4f9dff, #2f7ddf); box-shadow: 0 4px 10px rgba(47,125,223,.4); }
+  .btn.big { width: 100%; padding: 16px; font-size: 19px; margin-top: 6px; }
+  .btn[disabled] { opacity: .4; cursor: default; pointer-events: none; }
+
+  /* ---------- Overlays ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 20, 26, .8);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    z-index: 50;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    width: 100%;
+    max-width: 380px;
+    background: var(--panel);
+    color: #1f2933;
+    border-radius: 22px;
+    padding: 22px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  .panel h2 { margin: 0 0 6px; font-size: 24px; }
+  .panel .hint { font-size: 14px; color: #5a6672; margin: 0 0 16px; }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: #f1f3f6;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .choice:active { transform: scale(.985); }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; flex: 0 0 auto; box-shadow: inset 0 -3px 4px rgba(0,0,0,.25); }
+  .swatch.red { background: var(--p-red); }
+  .swatch.green { background: var(--p-green); }
+  .swatch.yellow { background: var(--p-yellow); }
+  .swatch.blue { background: var(--p-blue); }
+  .choice .label { flex: 1 1 auto; text-align: left; font-weight: 700; }
+  .choice .mode {
+    font-weight: 800;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    min-width: 92px;
+    text-align: center;
+  }
+  .mode.human { background: #2faf4f; color: #fff; }
+  .mode.cpu { background: #4f9dff; color: #fff; }
+  .mode.off { background: #c3cad3; color: #5a6672; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(120px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    background: rgba(0,0,0,.85);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 15px;
+    z-index: 40;
+    pointer-events: none;
+    transition: opacity .3s;
+  }
+  .toast.hidden { opacity: 0; }
+  </style>
 </head>
 <body>
   <div id="app">
@@ -55,6 +391,507 @@
   <!-- transient toast -->
   <div id="toast" class="toast hidden"></div>
 
-  <script src="game.js"></script>
+  <script>
+  "use strict";
+
+  /* ============================================================
+     Mensch ärgere dich nicht  —  mobile edition (single file)
+     Board model:
+     - 11x11 grid, classic cross shape.
+     - 40-field main loop (PATH), 4 home cells per colour, 4 base cells.
+     - A piece's position is stored as `dist`:
+          -1        -> in base
+          0 .. 39   -> on main track, cell = PATH[(start + dist) % 40]
+          40 .. 43  -> home stretch cell home[dist - 40]
+       A piece is "finished" once dist >= 40. You win when all 4 are home.
+     ============================================================ */
+
+  const GRID = 11;
+
+  // 40 main-track cells in clockwise order, each [col, row] on the 11x11 grid.
+  const PATH = [
+    [0,4],[1,4],[2,4],[3,4],[4,4],[4,3],[4,2],[4,1],[4,0],[5,0],
+    [6,0],[6,1],[6,2],[6,3],[6,4],[7,4],[8,4],[9,4],[10,4],[10,5],
+    [10,6],[9,6],[8,6],[7,6],[6,6],[6,7],[6,8],[6,9],[6,10],[5,10],
+    [4,10],[4,9],[4,8],[4,7],[4,6],[3,6],[2,6],[1,6],[0,6],[0,5]
+  ];
+
+  const PLAYERS = [
+    { name: "Rot",  color: "red",
+      start: 0,
+      base: [[1,1],[2,1],[1,2],[2,2]],
+      home: [[1,5],[2,5],[3,5],[4,5]] },
+    { name: "Grün", color: "green",
+      start: 10,
+      base: [[8,1],[9,1],[8,2],[9,2]],
+      home: [[5,1],[5,2],[5,3],[5,4]] },
+    { name: "Gelb", color: "yellow",
+      start: 20,
+      base: [[8,8],[9,8],[8,9],[9,9]],
+      home: [[9,5],[8,5],[7,5],[6,5]] },
+    { name: "Blau", color: "blue",
+      start: 30,
+      base: [[1,8],[2,8],[1,9],[2,9]],
+      home: [[5,9],[5,8],[5,7],[5,6]] }
+  ];
+
+  const PIECES_PER = 4;
+  const CELL_PCT = 100 / GRID;
+
+  /* ---------------- State ---------------- */
+  const state = {
+    active: [true, false, false, false], // which colours are in the game
+    human:  [true, false, false, false], // human vs computer
+    pieces: [],   // pieces[pi] = [{dist}, ...]
+    current: 0,
+    dice: 0,
+    phase: "idle", // 'roll' | 'move' | 'idle' | 'over'
+    rollsLeft: 1,
+    legal: [],
+    busy: false
+  };
+
+  /* ---------------- DOM ---------------- */
+  const board    = document.getElementById("board");
+  const statusEl = document.getElementById("status");
+  const rollBtn  = document.getElementById("rollBtn");
+  const dieEl    = document.getElementById("die");
+  const toastEl  = document.getElementById("toast");
+
+  /* ============================================================
+     Board construction (static cells, built once)
+     ============================================================ */
+  function place(el, x, y) {
+    el.style.left = (x * CELL_PCT) + "%";
+    el.style.top  = (y * CELL_PCT) + "%";
+  }
+
+  function buildBoard() {
+    board.innerHTML = "";
+
+    PATH.forEach((c, i) => {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      const starter = PLAYERS.find(p => p.start === i);
+      if (starter) cell.classList.add("start", starter.color);
+      cell.innerHTML = '<span class="dot"></span>';
+      place(cell, c[0], c[1]);
+      board.appendChild(cell);
+    });
+
+    PLAYERS.forEach(p => {
+      p.home.forEach(c => {
+        const cell = document.createElement("div");
+        cell.className = "cell home " + p.color;
+        cell.innerHTML = '<span class="dot"></span>';
+        place(cell, c[0], c[1]);
+        board.appendChild(cell);
+      });
+      p.base.forEach(c => {
+        const cell = document.createElement("div");
+        cell.className = "cell base " + p.color;
+        cell.innerHTML = '<span class="dot"></span>';
+        place(cell, c[0], c[1]);
+        board.appendChild(cell);
+      });
+    });
+
+    const center = document.createElement("div");
+    center.className = "center";
+    center.innerHTML =
+      '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+      '<polygon points="50,6 62,40 50,50" fill="#e23b3b"/>' +
+      '<polygon points="94,50 60,62 50,50" fill="#f3c014"/>' +
+      '<polygon points="50,94 38,60 50,50" fill="#2f7ddf"/>' +
+      '<polygon points="6,50 40,38 50,50" fill="#2faf4f"/>' +
+      '</svg>';
+    board.appendChild(center);
+  }
+
+  /* ============================================================
+     Geometry helpers
+     ============================================================ */
+  function pieceCoord(pi, piece, idx) {
+    const P = PLAYERS[pi];
+    const d = piece.dist;
+    if (d < 0) return P.base[idx];
+    if (d <= 39) return PATH[(P.start + d) % 40];
+    return P.home[d - 40];
+  }
+
+  function occupant(coord) {
+    for (let pi = 0; pi < 4; pi++) {
+      if (!state.active[pi]) continue;
+      const arr = state.pieces[pi];
+      if (!arr) continue;
+      for (let idx = 0; idx < arr.length; idx++) {
+        const c = pieceCoord(pi, arr[idx], idx);
+        if (c[0] === coord[0] && c[1] === coord[1]) return { pi, idx };
+      }
+    }
+    return null;
+  }
+
+  function allInBase(pi) { return state.pieces[pi].every(p => p.dist < 0); }
+  function hasWon(pi)    { return state.pieces[pi].every(p => p.dist >= 40); }
+
+  /* ============================================================
+     Move generation
+     ============================================================ */
+  function legalMoves(pi, value) {
+    const P = PLAYERS[pi];
+    const moves = [];
+    state.pieces[pi].forEach((pc, idx) => {
+      if (pc.dist < 0) {
+        if (value === 6) {
+          const coord = PATH[P.start];
+          const occ = occupant(coord);
+          if (occ && occ.pi === pi) return;
+          moves.push({ idx, newDist: 0, captures: occ && occ.pi !== pi ? occ : null });
+        }
+        return;
+      }
+      const newDist = pc.dist + value;
+      if (newDist > 43) return;
+      const coord = newDist <= 39 ? PATH[(P.start + newDist) % 40] : P.home[newDist - 40];
+      const occ = occupant(coord);
+      if (occ && occ.pi === pi) return;
+      if (newDist >= 40) {
+        for (let d = Math.max(40, pc.dist + 1); d < newDist; d++) {
+          const o = occupant(P.home[d - 40]);
+          if (o && o.pi === pi) return;
+        }
+      }
+      moves.push({ idx, newDist, captures: occ && occ.pi !== pi ? occ : null });
+    });
+    return moves;
+  }
+
+  function applyMove(pi, mv) {
+    if (mv.captures) state.pieces[mv.captures.pi][mv.captures.idx].dist = -1;
+    state.pieces[pi][mv.idx].dist = mv.newDist;
+  }
+
+  /* ============================================================
+     Rendering of pieces
+     ============================================================ */
+  function render() {
+    board.querySelectorAll(".piece").forEach(n => n.remove());
+
+    for (let pi = 0; pi < 4; pi++) {
+      if (!state.active[pi]) continue;
+      const arr = state.pieces[pi];
+      if (!arr) continue;
+      const P = PLAYERS[pi];
+      arr.forEach((pc, idx) => {
+        const el = document.createElement("div");
+        el.className = "piece " + P.color;
+        const coord = pieceCoord(pi, pc, idx);
+        el.style.left = ((coord[0] + 0.5) * CELL_PCT) + "%";
+        el.style.top  = ((coord[1] + 0.5) * CELL_PCT) + "%";
+
+        const isHumanTurn = state.phase === "move" &&
+                            pi === state.current &&
+                            state.human[pi];
+        const mv = isHumanTurn ? state.legal.find(m => m.idx === idx) : null;
+        if (mv) {
+          el.classList.add("movable");
+          el.addEventListener("click", () => onPieceTap(idx));
+        }
+        board.appendChild(el);
+      });
+    }
+  }
+
+  /* ============================================================
+     Die rendering
+     ============================================================ */
+  const PIP_MAP = {
+    1: [4], 2: [0, 8], 3: [0, 4, 8],
+    4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8]
+  };
+  function drawDie(value) {
+    const layer = dieEl.querySelector(".pip-layer");
+    layer.innerHTML = "";
+    const on = new Set(PIP_MAP[value] || []);
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement("div");
+      if (on.has(i)) {
+        const pip = document.createElement("div");
+        pip.className = "pip";
+        cell.appendChild(pip);
+      }
+      layer.appendChild(cell);
+    }
+  }
+
+  /* ============================================================
+     UI helpers
+     ============================================================ */
+  function setStatus(html) { statusEl.innerHTML = html; }
+
+  let toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.add("hidden"), 1300);
+  }
+
+  function playerTag(pi) {
+    const P = PLAYERS[pi];
+    return '<b style="color:var(--p-' + P.color + ')">' + P.name + '</b>';
+  }
+
+  function setRollEnabled(on) {
+    rollBtn.disabled = !on;
+    dieEl.style.cursor = on ? "pointer" : "default";
+  }
+
+  /* ============================================================
+     Turn flow
+     ============================================================ */
+  function startGame() {
+    state.pieces = PLAYERS.map(() => Array.from({ length: PIECES_PER }, () => ({ dist: -1 })));
+    state.current = state.active.findIndex(Boolean);
+    state.phase = "idle";
+    state.dice = 0;
+    drawDie(6);
+    render();
+    beginTurn();
+  }
+
+  function beginTurn() {
+    if (countActive() < 1) return;
+    const pi = state.current;
+    state.phase = "roll";
+    state.legal = [];
+    state.rollsLeft = allInBase(pi) ? 3 : 1;
+    render();
+
+    if (state.human[pi]) {
+      setStatus(playerTag(pi) + " ist am Zug – würfle!");
+      setRollEnabled(true);
+    } else {
+      setStatus(playerTag(pi) + " (Computer) denkt nach…");
+      setRollEnabled(false);
+      setTimeout(doRoll, 650);
+    }
+  }
+
+  function countActive() { return state.active.filter(Boolean).length; }
+
+  function nextPlayer() {
+    let n = state.current;
+    for (let k = 0; k < 4; k++) {
+      n = (n + 1) % 4;
+      if (state.active[n]) { state.current = n; return; }
+    }
+  }
+
+  function doRoll() {
+    if (state.phase !== "roll" || state.busy) return;
+    state.busy = true;
+    setRollEnabled(false);
+
+    dieEl.classList.remove("rolling");
+    void dieEl.offsetWidth;
+    dieEl.classList.add("rolling");
+
+    let ticks = 0;
+    const tumble = setInterval(() => {
+      drawDie(1 + Math.floor(Math.random() * 6));
+      if (++ticks >= 6) {
+        clearInterval(tumble);
+        finishRoll();
+      }
+    }, 60);
+  }
+
+  function finishRoll() {
+    const value = 1 + Math.floor(Math.random() * 6);
+    state.dice = value;
+    drawDie(value);
+
+    const pi = state.current;
+    const moves = legalMoves(pi, value);
+    state.legal = moves;
+    state.busy = false;
+
+    if (moves.length === 0) {
+      if (allInBase(pi) && value !== 6 && state.rollsLeft > 1) {
+        state.rollsLeft--;
+        setStatus(playerTag(pi) + " würfelt eine " + value + ". Nochmal versuchen…");
+        if (state.human[pi]) setRollEnabled(true);
+        else setTimeout(doRoll, 650);
+        return;
+      }
+      setStatus(playerTag(pi) + " würfelt eine " + value + " – kein Zug möglich.");
+      setTimeout(endTurn, 850);
+      return;
+    }
+
+    state.phase = "move";
+    render();
+
+    if (!state.human[pi]) {
+      setStatus(playerTag(pi) + " würfelt eine " + value + ".");
+      setTimeout(() => doMove(pickAIMove(pi, moves)), 600);
+    } else if (moves.length === 1) {
+      setStatus(playerTag(pi) + " würfelt eine " + value + ".");
+      setTimeout(() => doMove(moves[0]), 350);
+    } else {
+      setStatus(playerTag(pi) + " würfelt eine " + value + " – wähle eine Figur.");
+    }
+  }
+
+  function onPieceTap(idx) {
+    if (state.phase !== "move" || state.busy) return;
+    const mv = state.legal.find(m => m.idx === idx);
+    if (mv) doMove(mv);
+  }
+
+  function doMove(mv) {
+    if (state.busy) return;
+    state.busy = true;
+    const pi = state.current;
+    const captured = mv.captures;
+
+    applyMove(pi, mv);
+    state.phase = "animate";
+    state.legal = [];
+    render();
+
+    if (captured) {
+      setTimeout(() => toast(PLAYERS[pi].name + " schlägt " + PLAYERS[captured.pi].name + "! 😈"), 150);
+    }
+
+    setTimeout(() => {
+      state.busy = false;
+      if (hasWon(pi)) { winGame(pi); return; }
+      if (state.dice === 6) {
+        state.phase = "roll";
+        state.rollsLeft = 1;
+        render();
+        if (state.human[pi]) {
+          setStatus(playerTag(pi) + " hat eine 6 – nochmal würfeln!");
+          setRollEnabled(true);
+        } else {
+          setStatus(playerTag(pi) + " hat eine 6 – nochmal!");
+          setTimeout(doRoll, 600);
+        }
+      } else {
+        endTurn();
+      }
+    }, 360);
+  }
+
+  function endTurn() {
+    if (state.phase === "over") return;
+    nextPlayer();
+    beginTurn();
+  }
+
+  function winGame(pi) {
+    state.phase = "over";
+    render();
+    const P = PLAYERS[pi];
+    document.getElementById("winTitle").textContent = "🏆 " + P.name + " gewinnt!";
+    document.getElementById("winText").innerHTML =
+      playerTag(pi) + " hat alle Figuren ins Ziel gebracht. Glückwunsch!";
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  /* ============================================================
+     Simple computer opponent
+     ============================================================ */
+  function pickAIMove(pi, moves) {
+    let best = null, bestScore = -Infinity;
+    for (const mv of moves) {
+      const pc = state.pieces[pi][mv.idx];
+      let score = 0;
+      if (mv.captures) score += 1000 + mv.newDist;
+      if (mv.newDist >= 40) score += 600 + mv.newDist;
+      if (pc.dist < 0) score += 300;
+      score += mv.newDist;
+      score += Math.random();
+      if (score > bestScore) { bestScore = score; best = mv; }
+    }
+    return best;
+  }
+
+  /* ============================================================
+     Setup screen
+     ============================================================ */
+  function buildSetup() {
+    const wrap = document.getElementById("playerChoices");
+    wrap.innerHTML = "";
+    const modes = ["human", "cpu", "off"];
+    const labels = { human: "Mensch", cpu: "Computer", off: "Aus" };
+    const cfg = ["human", "cpu", "cpu", "cpu"];
+
+    PLAYERS.forEach((P, i) => {
+      const row = document.createElement("div");
+      row.className = "choice";
+      row.innerHTML =
+        '<span class="swatch ' + P.color + '"></span>' +
+        '<span class="label">' + P.name + '</span>' +
+        '<span class="mode ' + cfg[i] + '">' + labels[cfg[i]] + '</span>';
+      const modeEl = row.querySelector(".mode");
+      row.addEventListener("click", () => {
+        let m = modes.indexOf(cfg[i]);
+        m = (m + 1) % modes.length;
+        cfg[i] = modes[m];
+        modeEl.className = "mode " + cfg[i];
+        modeEl.textContent = labels[cfg[i]];
+      });
+      wrap.appendChild(row);
+    });
+
+    document.getElementById("startBtn").onclick = () => {
+      const active = cfg.map(m => m !== "off");
+      const human  = cfg.map(m => m === "human");
+      if (active.filter(Boolean).length < 2) {
+        toast("Mindestens 2 Spieler nötig!");
+        return;
+      }
+      state.active = active;
+      state.human = human;
+      document.getElementById("setup").classList.add("hidden");
+      document.getElementById("winScreen").classList.add("hidden");
+      startGame();
+    };
+  }
+
+  /* ============================================================
+     Wiring
+     ============================================================ */
+  function onRollClick() {
+    const pi = state.current;
+    if (state.phase === "roll" && state.human[pi]) doRoll();
+  }
+
+  rollBtn.addEventListener("click", onRollClick);
+  dieEl.addEventListener("click", onRollClick);
+  dieEl.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onRollClick(); }
+  });
+
+  document.getElementById("menuBtn").addEventListener("click", () => {
+    state.phase = "idle";
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("setup").classList.remove("hidden");
+  });
+  document.getElementById("againBtn").addEventListener("click", () => {
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("setup").classList.remove("hidden");
+  });
+
+  // init
+  buildBoard();
+  buildSetup();
+  drawDie(6);
+  render();
+  </script>
 </body>
 </html>
